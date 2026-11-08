@@ -1,0 +1,12 @@
+# Only the extension, its README and its privacy policy are public.
+# Everything else (tests, tools, the plan, the store files, browser profiles) stays local.
+/*
+!/.gitignore
+!/extension/
+!/README.md
+!/PRIVACY.md
+
+.DS_Store
+.claude/
+# Tells Node the files are ES modules, for the local tests. Not part of the extension.
+/extension/package.json

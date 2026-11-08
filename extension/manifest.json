@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "Ultimate Volume Control",
+  "version": "1.0.0",
+  "description": "Make quiet sites louder, safely. Boost per site, up to 400%, with a true-peak limiter. Everything stays on your device.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "tabCapture",
+    "offscreen"
+  ],
+  "optional_host_permissions": [
+    "*://*/*"
+  ],
+  "background": {
+    "service_worker": "background/worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Boost: off.",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    },
+    "default_popup": "popup/popup.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+V"
+      },
+      "description": "Open the volume control"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "worklet/processor.js",
+        "dsp/*.js"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
+  ]
+}

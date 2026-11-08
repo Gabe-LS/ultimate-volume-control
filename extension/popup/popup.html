@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ultimate Volume Control</title>
+<link rel="stylesheet" href="../ui/tokens.css">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="site">This site</h1>
+  </header>
+  <div class="level">
+    <output id="percent" for="slider">100%</output>
+    <output id="db" for="slider">0.0 dB</output>
+  </div>
+  <input id="slider" type="range" min="100" max="400" step="1" value="100" aria-label="Volume boost" disabled>
+  <p id="marker"></p>
+
+  <label class="scope">Save for
+    <select id="scope">
+      <option value="site">This site</option>
+      <option value="page">This page</option>
+      <option value="regex">Pages matching a pattern</option>
+    </select>
+  </label>
+  <p id="scope-hint" class="hint" hidden></p>
+  <section id="regex" hidden>
+    <label>Pattern (regular expression)
+      <input id="regex-pattern" type="text" spellcheck="false" autocomplete="off">
+    </label>
+    <label>Websites it applies on, one per line
+      <textarea id="regex-origins" rows="2" spellcheck="false"></textarea>
+    </label>
+    <button id="regex-save" type="button">Save pattern</button>
+    <p id="regex-error" class="error" role="alert" hidden></p>
+  </section>
+
+  <section id="meters" aria-label="Levels" hidden>
+    <div class="meter"><span>In</span><div id="meter-in" class="bar" role="meter" aria-label="Input peak" aria-valuemin="-48" aria-valuemax="0"><i></i></div></div>
+    <div class="meter"><span>Out</span><div id="meter-out" class="bar" role="meter" aria-label="Output peak" aria-valuemin="-48" aria-valuemax="0"><i></i></div></div>
+    <div class="meter"><span>Limit</span><div id="meter-gr" class="bar reduce" role="meter" aria-label="Peaks being limited" aria-valuemin="0" aria-valuemax="6"><i></i></div></div>
+    <dl class="loudness">
+      <div><dt>Momentary</dt><dd id="val-m">–</dd></div>
+      <div><dt>Short-term</dt><dd id="val-s">–</dd></div>
+    </dl>
+    <p id="frames-note" class="hint" hidden></p>
+    <button id="compare" type="button" aria-pressed="false">Hear original</button>
+  </section>
+
+  <p id="status" role="status">Not active</p>
+
+  <section id="access" hidden>
+    <p>To keep this volume on your next visit:</p>
+    <div class="choices">
+      <button id="allow-site" type="button">Allow on this site only</button>
+      <button id="allow-all" type="button">Allow on all sites</button>
+    </div>
+    <p class="hint">Each site keeps its own volume.</p>
+  </section>
+
+  <div class="actions">
+    <button id="restore" type="button" hidden>Restore boost</button>
+    <button id="frames" type="button" hidden>Also boost the embedded player</button>
+    <button id="reload" type="button" hidden>Reload without boost</button>
+    <button id="remove" type="button" hidden>Remove this site</button>
+    <button id="each-site" type="button" hidden>Ask for each site instead</button>
+    <button id="options" type="button">Saved sites</button>
+  </div>
+</main>
+<script type="module" src="popup.js"></script>
+</body>
+</html>

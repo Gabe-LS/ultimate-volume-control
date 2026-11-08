@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ultimate Volume Control: saved sites</title>
+<link rel="stylesheet" href="../ui/tokens.css">
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main>
+  <h1>Saved sites</h1>
+  <p id="empty" hidden>Nothing saved yet. Move the slider on any site, then choose Allow.</p>
+  <table id="rules" hidden>
+    <thead><tr><th scope="col">Applies to</th><th scope="col">Volume</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p id="message" role="status"></p>
+
+  <h2>Site access</h2>
+  <p id="access-text"></p>
+  <p class="muted">A saved site is that exact address: www, subdomains, and http or https count as separate sites.</p>
+  <div class="row">
+    <button id="allow-all" type="button" hidden>Allow on all sites</button>
+    <button id="each-site" type="button" hidden>Ask for each site instead</button>
+  </div>
+
+  <h2>Peak ceiling</h2>
+  <p class="muted">The highest level a boosted page can reach. 0 dB suits almost everything. Lower it if your speakers or a capture app distort. At 100% audio is left untouched, so this applies only to boosted pages.</p>
+  <label class="row">Ceiling
+    <select id="ceiling">
+      <option value="0">0 dB</option>
+      <option value="-0.5">-0.5 dB</option>
+      <option value="-1">-1 dB</option>
+      <option value="-2">-2 dB</option>
+      <option value="-3">-3 dB</option>
+      <option value="-6">-6 dB</option>
+    </select>
+  </label>
+
+  <h2>Backup</h2>
+  <p class="muted">Exported files hold the sites and page addresses you saved, and stay on your device unless you share them.</p>
+  <div class="row">
+    <button id="export" type="button">Export settings</button>
+    <button id="import" type="button">Import settings</button>
+    <input id="import-file" type="file" accept="application/json,.json" hidden>
+  </div>
+</main>
+<script type="module" src="options.js"></script>
+</body>
+</html>

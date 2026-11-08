@@ -1,0 +1,21 @@
+main { max-width: 680px; margin: 0 auto; padding: 28px 24px 48px; display: grid; gap: 10px; font-size: 14px; }
+h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+h2 { margin: 22px 0 0; font-size: 15px; font-weight: 600; }
+p { margin: 0; }
+.muted, thead th { color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px 8px 8px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+thead th { font-weight: 500; font-size: 13px; }
+td:last-child { text-align: right; white-space: nowrap; padding-right: 0; }
+.kind { display: block; color: var(--muted); font-size: 12px; }
+.target { overflow-wrap: anywhere; }
+.volume { display: flex; align-items: center; gap: 4px; }
+.volume input { width: 66px; font-variant-numeric: tabular-nums; }
+.needs { display: block; color: var(--warn); font-size: 12px; margin-top: 2px; }
+.pattern { display: grid; gap: 4px; margin-top: 4px; }
+.pattern label { display: grid; gap: 2px; color: var(--muted); font-size: 12px; }
+.pattern input, .pattern textarea { width: 100%; color: var(--text); font-size: 13px; }
+td button + button { margin-left: 6px; }
+#message { min-height: 20px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

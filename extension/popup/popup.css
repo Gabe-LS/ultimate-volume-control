@@ -1,0 +1,45 @@
+/* Values change many times a second, so nothing here may take its size from what they say:
+   each has a fixed place, and whatever comes and goes keeps its space. */
+body { width: 300px; }
+main { padding: 14px 16px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+h1 { margin: 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+p { margin: 0; }
+.hint { color: var(--muted); font-size: 11px; }
+.error { color: var(--hot); font-size: 12px; overflow-wrap: anywhere; }
+
+.level { display: flex; align-items: baseline; justify-content: space-between; }
+#percent { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; white-space: nowrap; }
+#db { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#slider { width: 100%; margin: 0; accent-color: var(--accent); }
+#marker { min-height: 18px; color: var(--warn); font-variant-numeric: tabular-nums; visibility: hidden; }
+#status { min-height: 18px; color: var(--muted); }
+
+.scope { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); }
+.scope select { color: var(--text); min-width: 0; flex: 1; }
+#regex { display: grid; gap: 6px; }
+#regex label { display: grid; gap: 2px; color: var(--muted); font-size: 12px; }
+#regex input, #regex textarea { width: 100%; color: var(--text); resize: vertical; font-size: 12px; }
+
+/* The meters are the instrument on this panel: lit segments on a dark scale, read at a glance. */
+#meters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; padding: 10px; border-radius: 6px; background: var(--panel); }
+.meter { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 6px; font-variant-numeric: tabular-nums; font-size: 12px; }
+.meter span { color: var(--muted); }
+.bar {
+  position: relative; height: 10px; overflow: hidden; background: color-mix(in srgb, var(--text) 12%, transparent);
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 5px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 5px);
+}
+.bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); }
+.bar i.hot { background: var(--hot); }
+/* Reduction grows leftward from the right edge, the way gain reduction reads on a hardware limiter. */
+.bar.reduce i { inset: 0 0 0 auto; background: var(--reduce); }
+.loudness { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 3px 0 0; font-size: 12px; }
+.loudness dt { color: var(--muted); font-size: 11px; }
+.loudness dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+#compare { margin-top: 4px; }
+#compare[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+#access { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.choices { display: grid; gap: 6px; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
