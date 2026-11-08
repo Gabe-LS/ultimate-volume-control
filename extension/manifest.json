@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Ultimate Volume Control",
   "version": "1.0.0",
-  "description": "Make quiet sites louder, safely. Boost per site, up to 400%, with a true-peak limiter. Everything stays on your device.",
+  "description": "Boost quiet sites up to 400% through a true-peak limiter with 4× oversampled detection. Untouched at 100%. Per-site, all on-device.",
   "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/icon16.png",
