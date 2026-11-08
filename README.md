@@ -15,7 +15,7 @@ Make quiet sites louder. A Chrome extension that boosts a tab's sound per site, 
 
 - **Up to 400%** on quiet sound. Loud music gets less, and the boost lowers itself for that page only: your slider and saved volume stay where you put them.
 - **Per site**: "Allow on this site only" or "Allow on all sites", and the volume comes back by itself on your next visit (on sites only tab capture can reach, after a click on the icon). Volumes can also be kept for a single page or a pattern of addresses.
-- **A dot on the icon** for each tab: green when the boost is on, red when it should be on but isn't, none at normal volume. The tooltip gives the details, such as "Boost: 135% (400%). Saved."
+- **The icon's hand** shows each tab's state: green when the boost is on, red when it should be on but isn't, white at normal volume. The tooltip gives the details, such as "Boost: 135% (400%). Saved."
 - **Hear original** to compare with the untouched sound in one click.
 - **Saved sites page** to change, remove, export and import your volumes.
 - **Private**: no account, no server, no analytics, no network requests of its own.
@@ -41,7 +41,7 @@ Most sites are boosted from inside the page: the extension routes the page's aud
 
 ### Known limits
 
-- A site that switches a boosted track to a source the extension can't reach can go silent. The dot turns red, and "Reload without boost" in the popup plays that page at normal volume.
+- A site that switches a boosted track to a source the extension can't reach can go silent. The icon's hand turns red, and "Reload without boost" in the popup plays that page at normal volume.
 - When one sound on a page is boosted from inside the page, tab capture doesn't start, so another sound there that can't be reached plays at its normal level.
 - The ceiling applies to each frame on its own: two embedded players playing at once can sum above it.
 - With tab capture, the first 0.1 to 0.15 s of sound after more than about 12 s of silence can be missed.
@@ -55,7 +55,7 @@ Chrome says this extension can "read and change all your data on all websites". 
 ```
 extension/           Chrome extension source (load this folder)
   manifest.json      Manifest V3
-  background/        Service worker: rules, access, capture, the icon's dot and tooltip
+  background/        Service worker: rules, access, capture, the icon's colour and tooltip
   content/           Page scripts: route the page's audio through the limiter
   worklet/           AudioWorklet processor
   dsp/               True-peak detector, limiter and meters
@@ -69,6 +69,10 @@ extension/           Chrome extension source (load this folder)
 ## Privacy
 
 See [PRIVACY.md](PRIVACY.md).
+
+## Credits
+
+Icon [designed by gravisio from Flaticon](https://www.flaticon.com/free-icon/optimization_17811899) ("Optimization"), recoloured. It is used under Flaticon's free licence with attribution, and isn't covered by any licence of this repository.
 
 ## Support
 
