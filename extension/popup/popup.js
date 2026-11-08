@@ -232,9 +232,9 @@ async function pollLive() {
   // Set: the volume the frames were given. A narrower rule can win over the slider's scope, and then the page follows it.
   const setDb = hooked.length ? Math.max(...hooked.map((f) => f.gainDb)) : toDb(Number($("slider").value));
   const effective = hooked.length ? Math.min(...hooked.map((f) => f.effectiveBoostDb)) : setDb;
-  const reduction = hooked.reduce((v, f) => Math.max(v, f.reductionDb), 0);
   const lowered = setDb - effective > 0.05;
-  const now = setDb - Math.max(setDb - effective, reduction);
+  // Only the boost, as in the tooltip: it lowers and holds. The peaks caught moment to moment are the Limit meter's.
+  const now = effective;
   $("marker").style.visibility = hooked.length && setDb > 0 && setDb - now > 0.1 ? "visible" : "hidden";
   $("marker").textContent = `Set ${toPercent(setDb)}%, now ${toPercent(Math.max(0, now))}%`;
   hide("restore", hooked.length === 0);
