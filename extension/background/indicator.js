@@ -1,5 +1,6 @@
-// What the toolbar icon says about a tab: a dot, and a tooltip. Green is a boost that's running, red is a boost that should
-// be running and isn't, and no dot is the site's normal volume. Lowering itself is the boost working, so it stays green.
+// What the toolbar icon says about a tab: the tile's colour, and a tooltip. Green is a boost that's running; red is a boost
+// that has stopped, may have silenced the page, or can't reach the sound; black is everything else, including a boost not
+// started yet. Lowering itself is the boost working, so it stays green. The state is still called the dot ("on", "alert", "").
 const percent = (db) => Math.round(100 * Math.pow(10, db / 20));
 
 export function indicator({ frames = {}, capture = false, notReached = false, blocked = false, lowered = "", setDb = 0, saved = false, noAccess = false, doNotRoute = false }) {

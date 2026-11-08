@@ -1,21 +1,24 @@
 # Ultimate Volume Control: privacy policy
 
-Last updated: 7 November 2026
+Last updated: 8 November 2026
 
 Ultimate Volume Control makes quiet sites louder. It does this entirely on your device.
 
 ## What it stores
 
-The extension stores these on your device, using Chrome's own extension storage:
+The extension stores these on your device, using Chrome's own extension storage, until you remove them or uninstall it:
 
-- the sites and pages you chose a volume for, and that volume
+- the sites and pages you chose a volume for (a page by its full address), that volume, and when you saved and last changed it
 - patterns you wrote yourself
+- the websites of embedded players you chose to boost with "Also boost the embedded player", kept with that saved volume
 - your output ceiling setting
 - the addresses (without the part after "?" or "#") of pages where you pressed "Reload without boost", so they load at normal volume next time. At most 200 are kept, the oldest going first. This list isn't shown on the Saved sites page or included in an export. Moving the slider on such a page takes it off the list, and removing a site's last saved volume removes that site's entries.
 
+An export from the Saved sites page holds everything above except the "Reload without boost" addresses.
+
 If you turn on Chrome sync, none of this is synced by the extension. It stays in local storage on that device.
 
-While Chrome is open, it also keeps, for each tab it runs on, the websites of large embedded frames on the page (such as a video player from another site), to offer "Also boost the embedded player". This is held in Chrome's session storage and is gone when Chrome closes.
+While Chrome is open, it also keeps, for each tab it runs on, the volume in use and the site or page it applies to, and the websites of large embedded frames on the page (such as a video player from another site), to offer "Also boost the embedded player". This is held in Chrome's session storage and is gone when the tab or Chrome closes.
 
 ## What it sends
 
@@ -30,9 +33,9 @@ When a site makes its sound in a way the extension can't reach from inside the p
 ## Permissions
 
 - **Storage:** keeps your volumes and settings.
-- **Scripting and active tab:** applies the volume to the tab you opened the extension on.
+- **Scripting and active tab:** applies the volume to the tab you opened the extension on, and on sites you allowed, starts the script that applies your saved volume as the page loads. After an update of the extension, it puts the new script back into open tabs, so a boost in progress keeps working.
 - **Tab capture and offscreen:** boosts sound a page script can't reach, only after you have opened the extension on that tab. Because of this permission, Chrome warns at install that the extension can "read and change all your data on all websites". It uses that access only for the sound of tabs you boost.
-- **Site access (optional):** you are asked only if you want a volume kept for your next visit. "Allow on this site only" covers one site. "Allow on all sites" covers every site: a small script then runs on every page you open, so a boost can start before the page's sound does. Until you choose a volume on a page, it passes that page's sound through unchanged, at 100%. It also notes the websites of large embedded frames on the page, as described above.
+- **Site access (optional):** you are asked if you want a volume kept for your next visit, and for an embedded player's site if you press "Also boost the embedded player". You are not asked otherwise. "Allow on this site only" covers one site. "Allow on all sites" covers every site: a small script then runs on every page you open, so a boost can start before the page's sound does. Until you choose a volume on a page, it passes that page's sound through unchanged, at 100%. It also notes the websites of large embedded frames on the page, as described above.
 
 You can remove site access from Chrome's extension settings at any time. The other permissions are part of the extension and go when you uninstall it. You can delete every saved volume from the extension's Saved sites page. Uninstalling removes everything.
 
