@@ -431,7 +431,19 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   for (const t of await chrome.tabs.query({})) if (t.url && (await wantedGain(t.id, t.url)) > 0) await inject(t.id);
 });
 chrome.runtime.onStartup.addListener(() => reconcile());
-chrome.permissions.onAdded.addListener(async () => { await completeApply(); await reconcile(); });
+chrome.permissions.onAdded.addListener(async () => {
+  await completeApply();
+  await reconcile();
+  // A saved volume that access covers again comes back in its open tabs, as it would on their next load.
+  for (const t of await chrome.tabs.query({})) {
+    const origin = t.url ? originOf(t.url) : null;
+    if (!origin || !(await hasPermission(origin))) continue;
+    const gainDb = await wantedGain(t.id, t.url);
+    if (gainDb <= 0 || (await readTab(t.id)).setDb === gainDb) continue;
+    await inject(t.id);
+    await sendGain(t.id, gainDb);
+  }
+});
 // The popup can close while the permission prompt is up, and then nothing reports a refusal. So when a popup goes away with
 // a save still waiting for permission, say it won't be remembered. An Allow still arrives through onAdded and clears this.
 const POPUP_CLOSE_CHECK_MS = 500; // Lets an apply sent just before the popup closed arrive first.

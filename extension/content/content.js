@@ -622,6 +622,8 @@
           age: performance.now(), // How old this document is.
           status, detail, gainDb,
           effectiveBoostDb: processors.length ? lowest : gainDb,
+          // How far the boost has lowered itself, from each limiter's own report, so a slider move in flight doesn't count.
+          loweredDb: processors.reduce((v, p) => Math.max(v, (p.targetDb ?? gainDb) - p.effectiveBoostDb), 0),
           reductionDb: best ? best.reductionDb : 0,
           inputEnergy: best ? best.energy : 0,
           clips: processors.reduce((v, p) => v + p.clips, 0),

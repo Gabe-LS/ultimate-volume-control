@@ -133,7 +133,7 @@ function live(s, watch) {
     }
   }
   return {
-    capture: true, status: "active", gainDb: s.gainDb, effectiveBoostDb: s.effectiveBoostDb, reductionDb: s.reductionDb,
+    capture: true, status: "active", gainDb: s.gainDb, effectiveBoostDb: s.effectiveBoostDb, loweredDb: Math.max(0, s.targetDb - s.effectiveBoostDb), reductionDb: s.reductionDb,
     inputEnergy: s.energy, clips: s.clips, lateEvents: s.lateEvents, maxLagMs: s.maxLagMs, routedCount: 0, graphs: 1, engine: s.ctx.state, meters: s.meters,
   };
 }

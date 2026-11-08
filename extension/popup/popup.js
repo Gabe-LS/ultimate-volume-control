@@ -120,6 +120,9 @@ $("slider").addEventListener("input", () => {
 // Letting go saves the final position, only once it has been applied.
 $("slider").addEventListener("change", () => applySlider().then(() => send({ type: "commit" })));
 $("scope").addEventListener("change", showScope);
+// Opened with the mouse: no focus ring once the choice is made. Keyboard use, or leaving and coming back, brings it back.
+$("scope").addEventListener("pointerdown", () => $("scope").classList.add("by-pointer"));
+for (const type of ["keydown", "blur"]) $("scope").addEventListener(type, () => $("scope").classList.remove("by-pointer"));
 
 // The permission request must come first in the handler, before any await, or Chrome refuses it.
 function askFor(origins) {
@@ -231,12 +234,13 @@ async function pollLive() {
   const hooked = liveFrames.filter((f) => f.graphs > 0);
   // Set: the volume the frames were given. A narrower rule can win over the slider's scope, and then the page follows it.
   const setDb = hooked.length ? Math.max(...hooked.map((f) => f.gainDb)) : toDb(Number($("slider").value));
-  const effective = hooked.length ? Math.min(...hooked.map((f) => f.effectiveBoostDb)) : setDb;
-  const lowered = setDb - effective > 0.05;
   // Only the boost, as in the tooltip: it lowers and holds. The peaks caught moment to moment are the Limit meter's.
-  const now = effective;
+  // Each limiter reports how far it has lowered itself, so a slider move still on its way never shows as lowering.
+  const loweredDb = hooked.reduce((v, f) => Math.max(v, f.loweredDb || 0), 0);
+  const lowered = loweredDb > 0.05;
+  const now = setDb - loweredDb;
   $("marker").style.visibility = hooked.length && setDb > 0 && setDb - now > 0.1 ? "visible" : "hidden";
-  $("marker").textContent = `Set ${toPercent(setDb)}%, now ${toPercent(Math.max(0, now))}%`;
+  $("marker").textContent = `now ${toPercent(Math.max(0, now))}%`;
   hide("restore", hooked.length === 0);
   hide("restore", !lowered, "disabled");
   showMeters(hooked);
@@ -276,7 +280,8 @@ async function pollPanel() {
   let text = detail || STATUS[current];
   if (panel.capture && current !== "fault" && current !== "possible-silence") text = "Active. Chrome marks this tab as shared while it's boosted this way.";
   else if (panel.notReached && panel.captureBlocked) text = "Can't boost this sound. Another extension may be capturing this tab.";
-  if (rule && !panel.granted && !panel.capture) text = "Permission needed";
+  // A saved volume with no access isn't running, unless the slider has just been moved on this tab.
+  if (rule && !panel.granted && !panel.capture) text = panel.pendingGainDb > 0 ? "Permission needed" : `Boost off: no access to this site. Allow it to boost at ${toPercent(rule.gainDb)}%.`;
   else if (notRemembered) text = `${text.replace(/\.$/, "")}. Will not be remembered`;
   if (Date.now() < noteUntil) text = note;
   $("status").textContent = text;

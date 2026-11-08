@@ -7,11 +7,14 @@ p { margin: 0; }
 .hint { color: var(--muted); font-size: 11px; }
 .error { color: var(--hot); font-size: 12px; overflow-wrap: anywhere; }
 
-.level { display: flex; align-items: baseline; justify-content: space-between; }
+.level { display: flex; align-items: baseline; gap: 8px; }
 #percent { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; white-space: nowrap; }
+/* The lowered boost, small, right after the slider's value. It takes no row of its own, so it never moves the slider. */
+#marker { margin-right: auto; color: var(--warn); font-variant-numeric: tabular-nums; white-space: nowrap; visibility: hidden; }
 #db { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #slider { width: 100%; margin: 0; accent-color: var(--accent); }
-#marker { min-height: 18px; color: var(--warn); font-variant-numeric: tabular-nums; visibility: hidden; }
+/* Chrome keeps a dropdown's focus ring after a mouse choice. The ring is for the keyboard. */
+select.by-pointer:focus-visible { outline: none; }
 #status { min-height: 18px; color: var(--muted); }
 
 .scope { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); }
