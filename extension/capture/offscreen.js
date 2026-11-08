@@ -8,6 +8,16 @@ const REST_AFTER_MS = 10000; // With the tab silent for this long, the audio eng
 
 const tell = (m) => chrome.runtime.sendMessage(m).catch(() => {});
 
+// The worklet reports ten times a second and the popup reads five times. Each reading keeps the highest peaks, limiting and
+// momentary loudness since the last one, so a short peak between two readings still shows. The rest is the latest report.
+const HELD = ["peakInDb", "peakOutDb", "momentary", "maxCatchDb"];
+function holdMeters(held, next) {
+  if (!held) return next;
+  const out = { ...next };
+  for (const k of HELD) if (held[k] > out[k]) out[k] = held[k];
+  return out;
+}
+
 async function start({ tabId, streamId, gainDb, ceilingDb, muted, audible }) {
   await stop(tabId);
   const ctx = new AudioContext({ latencyHint: "playback" });
@@ -61,6 +71,7 @@ function onProcessor(s, m) {
     s.lateEvents = m.lateEvents;
     s.maxLagMs = m.maxLagMs;
     s.meters = m.meters;
+    s.metersHeld = m.meters ? holdMeters(s.metersHeld, m.meters) : null;
     // A lowered boost holds while the same sound plays, and a new page's boost starts afresh with the next sound.
     if (s.pendingRestore && m.energy === 0) {
       s.pendingRestore = false;
@@ -110,6 +121,7 @@ function wakeForChange(s) {
 
 function stopMeters(s) {
   s.metersOn = false;
+  s.metersHeld = null;
   s.node.port.postMessage({ type: "meters", on: false });
 }
 
@@ -132,9 +144,11 @@ function live(s, watch) {
       s.node.port.postMessage({ type: "meters", on: true });
     }
   }
+  const meters = s.metersHeld || s.meters;
+  if (watch) s.metersHeld = null; // Only the popup's reads: the worker reads too.
   return {
     capture: true, status: "active", gainDb: s.gainDb, effectiveBoostDb: s.effectiveBoostDb, loweredDb: Math.max(0, s.targetDb - s.effectiveBoostDb), reductionDb: s.reductionDb,
-    inputEnergy: s.energy, clips: s.clips, lateEvents: s.lateEvents, maxLagMs: s.maxLagMs, routedCount: 0, graphs: 1, engine: s.ctx.state, meters: s.meters,
+    inputEnergy: s.energy, clips: s.clips, lateEvents: s.lateEvents, maxLagMs: s.maxLagMs, routedCount: 0, graphs: 1, engine: s.ctx.state, meters,
   };
 }
 

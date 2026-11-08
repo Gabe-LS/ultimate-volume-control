@@ -31,6 +31,7 @@ let notRemembered = false;
 let liveFrames = [];
 let note = "";
 let noteUntil = 0;
+let touched = false; // The slider has been moved in this popup.
 
 // The panel refreshes slowly by itself, so after anything the person does it refreshes at once.
 const send = (m) => {
@@ -111,7 +112,20 @@ function applySlider() {
 }
 
 // The boost starts at once. Keeping it for next time is a separate choice, offered below the slider.
+// A drag settles on 200 and 300% when it comes within a few percent (400% is the end of the slider anyway). Nothing marks them, and the arrow keys still
+// move one step at a time, so every value stays reachable from the keyboard.
+const SNAP_TO = [200, 300];
+const SNAP_WITHIN = 4;
+let dragging = false;
+$("slider").addEventListener("pointerdown", () => { dragging = true; });
+for (const type of ["pointerup", "pointercancel"]) addEventListener(type, () => { dragging = false; });
 $("slider").addEventListener("input", () => {
+  if (dragging) {
+    const value = Number($("slider").value);
+    const near = SNAP_TO.find((v) => Math.abs(value - v) <= SNAP_WITHIN);
+    if (near) $("slider").value = near;
+  }
+  touched = true;
   notRemembered = false;
   showLevel(Number($("slider").value));
   showAccess();
@@ -240,7 +254,7 @@ async function pollLive() {
   const lowered = loweredDb > 0.05;
   const now = setDb - loweredDb;
   $("marker").style.visibility = hooked.length && setDb > 0 && setDb - now > 0.1 ? "visible" : "hidden";
-  $("marker").textContent = `now ${toPercent(Math.max(0, now))}%`;
+  $("marker").textContent = `Actual: ${toPercent(Math.max(0, now))}%`;
   hide("restore", hooked.length === 0);
   hide("restore", !lowered, "disabled");
   showMeters(hooked);
@@ -263,6 +277,9 @@ async function pollPanel() {
   panel = await send({ type: "panel", tabId: tab.id, url: tab.url });
   if (moved && !panel.canBoost) return window.close();
   if (moved) showPage();
+  // A volume that arrived after the popup opened, as when a page script taken over after an update reports the boost it
+  // was running at. Not once the slider has been moved here.
+  else if (!touched && panel.pendingGainDb != null && toPercent(panel.pendingGainDb) !== Number($("slider").value)) showSlider(panel.pendingGainDb);
   const rule = panel.rule;
   hide("remove", !rule);
   if (rule) $("remove").textContent = REMOVE_LABEL[rule.scope];
@@ -270,7 +287,7 @@ async function pollPanel() {
   showAccess();
   showScope(); // The rule may have changed since the scope was last chosen.
   // An embedded player is worth asking about only when there's sound that nothing here reached.
-  const hearing = liveFrames.some((f) => !f.capture && f.graphs > 0 && (f.inputEnergy || 0) > 0);
+  const hearing = liveFrames.some((f) => !f.capture && f.graphs > 0 && ((f.inputEnergy || 0) > 0 || f.heardMsAgo < 2500));
   hide("frames", panel.missingFrameOrigins.length === 0 || !rule || !panel.audible || hearing);
 
   const statuses = Object.values(panel.frames);

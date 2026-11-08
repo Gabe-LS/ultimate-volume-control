@@ -14,6 +14,11 @@
   const ROUTED_MARK = "data-uvc-routed";
   const startedEarly = document.readyState === "loading"; // Registered, so the hook was there before the page's own code.
   const earlierInstance = !!document.documentElement?.hasAttribute(ROUTED_MARK);
+  // After an extension update, the copy of this script from before it is cut off from the extension, but keeps the audio
+  // it routed: only its graph can carry it. The new copy takes it over (see "After an extension update" below).
+  const instanceId = Math.random().toString(36).slice(2);
+  let follower = false; // This copy has been taken over by a newer one, and only does what that one asks.
+  let inheritedRouted = 0; // Elements an earlier copy routed and this copy now controls.
 
   let gainDb = 0;
   let ceilingDb = 0;
@@ -28,6 +33,16 @@
   const known = new Set();
   const processors = []; // Every limiter instance in this frame.
   let own = null;
+
+  // The worklet reports ten times a second and the popup reads five times. Each reading keeps the highest peaks, limiting and
+  // momentary loudness since the last one, so a short peak between two readings still shows. The rest is the latest report.
+  const HELD = ["peakInDb", "peakOutDb", "momentary", "maxCatchDb"];
+  function holdMeters(held, next) {
+    if (!held) return next;
+    const out = { ...next };
+    for (const k of HELD) if (held[k] > out[k]) out[k] = held[k];
+    return out;
+  }
 
   const send = (message) => {
     if (dead) return Promise.resolve();
@@ -57,7 +72,7 @@
     report();
   }
   let routedTotal = 0;
-  const countRouted = () => routedTotal;
+  const countRouted = () => routedTotal + inheritedRouted;
   // One status per frame: audio that can't be boosted doesn't hide a boost that is running.
   const boosting = () => routedTotal > 0 || processors.length > 0;
 
@@ -101,6 +116,7 @@
           if (m.type === "ready") return done(p);
           if (m.type === "state") {
             Object.assign(p, m);
+            p.metersHeld = m.meters ? holdMeters(p.metersHeld, m.meters) : null;
             return afterState();
           }
           if (m.type === "fault") { p.faulted = true; onFault(p, m.message); }
@@ -142,6 +158,7 @@
             p.targetDb = limiter.targetDb;
             p.clips = limiter.clipCount;
             p.meters = monitor.metersOn ? { ...monitor.read(), maxCatchDb: limiter.readMaxCatchDb() } : null;
+            p.metersHeld = p.meters ? holdMeters(p.metersHeld, p.meters) : null;
             sum = 0;
             count = 0;
             afterState();
@@ -255,6 +272,8 @@
 
   async function route(el) {
     if (dead || gainDb <= 0 || doNotRoute || routed.has(el) || pageOwned.has(el)) return;
+    // Held by the copy from before an extension update: its sound already reaches a limiter this copy controls.
+    if (inherited() && heldByEarlier(el)) { pageOwned.add(el); return; }
     if (el.paused || el.readyState < 3) return; // Taint is not known until data is flowing.
     // A muted page with no click yet can't start audio anyway. It's looked at again on unmute, which is when a click comes.
     if (el.muted && !navigator.userActivation?.hasBeenActive && !routed.has(el)) return;
@@ -303,9 +322,7 @@
       routed.delete(el);
       if (e.name === "InvalidStateError") {
         pageOwned.add(el);
-        // After an extension update, the old graph still holds the element, and only a reload frees it.
-        if (earlierInstance) setStatus("unsupported", "Reload the page to control boost");
-        else setStatus("site-owned", "This site handles its own audio");
+        if (!heldByEarlier(el)) setStatus("site-owned", "This site handles its own audio");
       } else {
         setStatus("unsupported", "This audio could not be routed. It still plays normally.");
       }
@@ -371,8 +388,9 @@
     }
   }
 
+  const inherited = () => processors.some((p) => p.relay);
   function updateActive() {
-    if (routedTotal > 0 || (pageGraphs > 0)) setStatus("active");
+    if (routedTotal > 0 || pageGraphs > 0 || inherited()) setStatus("active");
   }
 
   // `known` lets go of elements the page has dropped, so they can be collected. One that is used again comes back
@@ -438,9 +456,11 @@
   // With all-sites access the hook is on pages that have no boost. Their audio only ever passes through the master at 100%,
   // and the processor is added if and when the user turns the page up.
   const waitingMasters = [];
+  const cutOff = () => dead || !chrome.runtime?.id;
   document.addEventListener("uvc:master", (e) => {
+    if (follower) return;
     const entry = { master: e.relatedTarget, ctx: pendingContext };
-    if (gainDb > 0) attachMaster(entry);
+    if (gainDb > 0 && !cutOff()) attachMaster(entry);
     else waitingMasters.push(entry);
   }, true);
   async function attachMaster({ master, ctx }) {
@@ -514,7 +534,7 @@
     if (db > 0) {
       // Audio already routed stays routed at 100%, so coming back up it's active straight away.
       if (status === "idle") {
-        if (routedTotal > 0 || pageGraphs > 0) updateActive();
+        if (routedTotal > 0 || pageGraphs > 0 || inherited()) updateActive();
         else setStatus("ready");
       }
       beginWatching();
@@ -563,9 +583,12 @@
   let silenceAt = 0;
   // Sound reaching the limiter is what clears a "not reached" alarm, so the worker hears of it straight away.
   let sounding = false;
+  let heardAt = 0; // The last time sound reached a limiter here: short sounds with gaps are silent most of the time.
   function afterState() {
+    if (follower) return relayState();
     const now = performance.now();
     const hearing = processors.some((p) => p.energy > 0);
+    if (hearing) heardAt = now;
     if (hearing !== sounding) {
       sounding = hearing;
       report();
@@ -626,15 +649,18 @@
           loweredDb: processors.reduce((v, p) => Math.max(v, (p.targetDb ?? gainDb) - p.effectiveBoostDb), 0),
           reductionDb: best ? best.reductionDb : 0,
           inputEnergy: best ? best.energy : 0,
+          heardMsAgo: heardAt ? performance.now() - heardAt : null,
           clips: processors.reduce((v, p) => v + p.clips, 0),
           lateEvents: processors.reduce((v, p) => v + p.lateEvents, 0),
           maxLagMs: processors.reduce((v, p) => Math.max(v, p.maxLagMs), 0),
           scriptProcessor: processors.some((p) => p.scriptProcessor),
-          routedCount: routedTotal, graphs: processors.length,
+          routedCount: countRouted(), graphs: processors.length,
           engine: own?.ctx.state,
           stale: earlierInstance, // An earlier copy of this script, cut off by an extension update, may still be boosting here.
-          meters: best?.meters || null,
+          meters: best ? best.metersHeld || best.meters || null : null,
         });
+        // Only the popup's own reads start a new hold: the worker reads too, and mustn't take a peak the popup hasn't shown.
+        if (m.watch) for (const p of processors) p.metersHeld = null;
       } else if (m.type === "original") {
         for (const p of processors) p.post({ type: "original", on: m.on });
         reply({ ok: true });
@@ -679,8 +705,74 @@
     for (const p of processors) {
       p.post({ type: "meters", on: false });
       p.meters = null;
+      p.metersHeld = null;
     }
   }
+
+  // ---- After an extension update ------------------------------------------------------------------------------------
+
+  // The copy injected after an update announces itself. Earlier copies hand over what they hold: their limiters become
+  // relays, driven by the new copy's commands and reporting back to it, and audio they hadn't boosted yet is passed on.
+  // The two copies share only the page, so commands and readings cross it as strings, and nodes as relatedTarget.
+  const relayIds = new Map(); // limiter -> id, in a copy that has been taken over
+  const relayEvent = (name, data) => document.dispatchEvent(new CustomEvent(`uvc:${name}`, { detail: JSON.stringify(data) }));
+  const heldByEarlier = (el) => !document.dispatchEvent(new MouseEvent("uvc:held", { relatedTarget: el, cancelable: true }));
+  document.addEventListener("uvc:leader", (e) => {
+    if (e.detail === instanceId) return;
+    if (!follower) {
+      follower = true;
+      dead = true;
+      observer.disconnect();
+      // Relays of yet older copies go: those copies answer the new one themselves.
+      for (let i = processors.length - 1; i >= 0; i--) if (processors[i].relay) processors.splice(i, 1);
+      inheritedRouted = 0;
+      document.addEventListener("uvc:held", (h) => { if (routed.get(h.relatedTarget)?.source) h.preventDefault(); }, true);
+      document.addEventListener("uvc:relay", (r) => {
+        const { id, m } = JSON.parse(r.detail);
+        for (const [p, pid] of relayIds) if (pid === id) p.post(m);
+        if (m.type !== "meters") wake(); // As setGain does: what the engine does with a change is seen while it runs.
+      }, true);
+    }
+    for (const p of processors) if (!relayIds.has(p)) relayIds.set(p, `${instanceId}:${relayIds.size}`);
+    relayEvent("relay-hello", { routed: routedTotal, limiters: processors.map((p) => ({ id: relayIds.get(p), targetDb: p.targetDb ?? gainDb })) });
+    for (const { master, ctx } of waitingMasters.splice(0)) {
+      document.dispatchEvent(new MouseEvent("uvc:context", { relatedTarget: ctx }));
+      document.dispatchEvent(new MouseEvent("uvc:master", { relatedTarget: master }));
+    }
+    relayState();
+  }, true);
+  function relayState() {
+    for (const [p, id] of relayIds) {
+      relayEvent("relay-state", { id, energy: p.energy, reductionDb: p.reductionDb, effectiveBoostDb: p.effectiveBoostDb, targetDb: p.targetDb, clips: p.clips, lateEvents: p.lateEvents, maxLagMs: p.maxLagMs, meters: p.metersHeld || p.meters || null });
+      p.metersHeld = null;
+    }
+  }
+  // In the copy taking over: each earlier limiter becomes one of its own, reached through the page.
+  let inheritedDb = 0;
+  document.addEventListener("uvc:relay-hello", (e) => {
+    if (follower) return;
+    const { routed: count, limiters } = JSON.parse(e.detail);
+    inheritedRouted += count;
+    for (const { id, targetDb } of limiters) {
+      if (processors.some((p) => p.relay === id)) continue;
+      const p = {
+        relay: id, post: (m) => relayEvent("relay", { id, m }),
+        energy: 0, reductionDb: 0, effectiveBoostDb: targetDb, targetDb, clips: 0, lateEvents: 0, maxLagMs: 0, silentSince: 0, faulted: false, meters: null,
+      };
+      processors.push(p);
+      inheritedDb = Math.max(inheritedDb, targetDb);
+      if (metersOn) p.post({ type: "meters", on: true });
+    }
+  }, true);
+  document.addEventListener("uvc:relay-state", (e) => {
+    if (follower) return;
+    const { id, ...state } = JSON.parse(e.detail);
+    const p = processors.find((x) => x.relay === id);
+    if (!p) return;
+    Object.assign(p, state);
+    p.metersHeld = state.meters ? holdMeters(p.metersHeld, state.meters) : null;
+    afterState();
+  }, true);
 
   // ---- Start --------------------------------------------------------------------------------------------------------
 
@@ -688,7 +780,10 @@
     addEventListener("pageshow", (e) => { if (e.persisted) { reported = ""; report(); } });
     document.addEventListener("play", (e) => { if (e.target?.matches?.("audio,video")) adopt(e.target); }, true);
     document.addEventListener("playing", (e) => { if (e.target?.matches?.("audio,video")) adopt(e.target); }, true);
-    const hello = () => send({ type: "hello" }).then((r) => {
+    // Earlier copies, cut off by an extension update, hand over now, so the worker hears the volume they were running at.
+    document.dispatchEvent(new CustomEvent("uvc:leader", { detail: instanceId }));
+    // startedAt lets the worker tell a document from before the update from one a page could have made up since.
+    const hello = () => send({ type: "hello", inheritedDb, startedAt: performance.timeOrigin }).then((r) => {
       if (!r) return;
       ceilingDb = r.ceilingDb;
       doNotRoute = r.doNotRoute;

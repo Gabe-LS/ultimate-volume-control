@@ -382,6 +382,7 @@ async function paintStatus(tabId) {
 // Chrome goes on calling a tab audible for seconds after its sound stops, so a new page that's still quiet proves nothing,
 // unless it is already playing something that can't be routed.
 const AUDIBLE_LAG_MS = 5000;
+const HEARD_LATELY_MS = 2500;
 async function soundIsOutOfReach(tab, state, gainDb) {
   if (!tab.audible || tab.mutedInfo?.muted || gainDb <= 0) return { reach: false };
   const store = await readStore();
@@ -391,7 +392,8 @@ async function soundIsOutOfReach(tab, state, gainDb) {
   // A script left from before the extension was updated or reloaded may still be boosting, out of reach of any message.
   // Capture would boost on top of it, so only a reload of the page puts this right.
   if (ids.some((id) => state.frames[id]?.stale) || lives.some((l) => l?.stale)) return { reach: false };
-  if (lives.some((l) => l && l.graphs > 0 && l.inputEnergy > 0)) return { reach: false };
+  // Sound heard lately counts too: between short sounds, the latest reading is silent.
+  if (lives.some((l) => l && l.graphs > 0 && (l.inputEnergy > 0 || l.heardMsAgo < HEARD_LATELY_MS))) return { reach: false };
   const certain = lives.some((l) => l?.status === "unsupported");
   const top = lives[ids.indexOf("0")];
   if (!certain && top && top.age < AUDIBLE_LAG_MS) return { reach: false, recheckIn: AUDIBLE_LAG_MS - top.age };
@@ -425,10 +427,19 @@ const SECOND_LOOK_MS = 2500; // Longer than Chrome takes to stop calling a tab a
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await reconcile();
-  // After an update or reload, the old script in an open boosted page can no longer be told anything, but its boost goes
-  // on. A script injected now finds it and says so, and capture then stays off, so the page can't be boosted twice.
+  // After an update or reload, the old script in an open page can no longer be told anything, but goes on processing the
+  // audio it holds. A script injected now takes it over, so the page keeps working without a reload. Where the extension
+  // has no access, the first click on its icon gives it, and the script goes in then.
   if (reason !== "update") return;
-  for (const t of await chrome.tabs.query({})) if (t.url && (await wantedGain(t.id, t.url)) > 0) await inject(t.id);
+  await chrome.storage.session.set({ updatedAt: Date.now() }); // Before any new script can say hello.
+  const later = [];
+  for (const t of await chrome.tabs.query({})) {
+    // Chrome hides the address of a tab the extension has no access to.
+    const origin = t.url ? originOf(t.url) : null;
+    if (origin && (await hasPermission(origin))) await inject(t.id);
+    else if (!t.url) later.push(t.id);
+  }
+  await chrome.storage.session.set({ afterUpdate: later });
 });
 chrome.runtime.onStartup.addListener(() => reconcile());
 chrome.permissions.onAdded.addListener(async () => {
@@ -565,7 +576,7 @@ async function pruneFrames(tabId) {
 }
 
 const HANDLERS = {
-  async hello(_m, sender) {
+  async hello(m, sender) {
     // A new top-level document: nothing from the last one applies.
     // Capture stops before this page's own script takes over, so the boost can't apply twice.
     if (sender.frameId === 0 && sender.tab) {
@@ -576,7 +587,18 @@ const HANDLERS = {
     const store = await readStore();
     const topUrl = sender.tab?.url;
     const capturing = sender.tab && (await readTab(sender.tab.id)).capture;
-    const gainDb = capturing || !sender.tab ? 0 : await wantedGain(sender.tab.id, topUrl);
+    let gainDb = capturing || !sender.tab ? 0 : await wantedGain(sender.tab.id, topUrl);
+    // After an extension update the tab's records are gone, but the copy of the page script from before it may still be
+    // boosting. Its volume carries on as this tab's unsaved boost, as it was before the update.
+    const origin = topUrl ? originOf(topUrl) : null;
+    // Only a top-level document that was already open at the update: the volume arrives through the page, so a page made
+    // since could otherwise claim one and be boosted without the user.
+    const { updatedAt = 0 } = await chrome.storage.session.get("updatedAt");
+    const fromBeforeUpdate = sender.frameId === 0 && updatedAt > 0 && m.startedAt > 0 && m.startedAt < updatedAt;
+    if (!gainDb && !capturing && origin && m.inheritedDb > 0 && fromBeforeUpdate) {
+      gainDb = Math.min(MAX_GAIN_DB, m.inheritedDb);
+      await chrome.storage.session.set({ [pendingKey(sender.tab.id)]: { tabId: sender.tab.id, origin, gainDb, target: targetFor("site", topUrl), at: Date.now() } });
+    }
     return { gainDb, ceilingDb: store.settings.ceilingDbtp, doNotRoute: isDoNotRoute(store, topUrl) };
   },
   async "frame-state"(m, sender) {
@@ -605,6 +627,11 @@ const HANDLERS = {
   },
   // Opening the popup is the click Chrome asks for before a tab can be captured.
   async "popup-opened"(m) {
+    const { afterUpdate = [] } = await chrome.storage.session.get("afterUpdate");
+    if (afterUpdate.includes(m.tabId)) {
+      await chrome.storage.session.set({ afterUpdate: afterUpdate.filter((id) => id !== m.tabId) });
+      await inject(m.tabId); // The click on the icon has just given access to this tab.
+    }
     // captureBlocked stays until the new try below decides it, so the popup never shows a wrong reason meanwhile.
     await updateTab(m.tabId, (state) => { delete state.captureRefused; state.clicked = true; });
     setTimeout(() => checkReached(m.tabId, true), 300);
